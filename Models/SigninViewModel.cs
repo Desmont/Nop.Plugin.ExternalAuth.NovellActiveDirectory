@@ -12,7 +12,7 @@ namespace Nop.Plugin.ExternalAuth.NovellActiveDirectory.Models
         [NopResourceDisplayName("Plugins.ExternalAuth.NovellActiveDirectory.LdapPassword")]
         public string AdPassword { get; set; }
         
-            [NopResourceDisplayName("Plugins.ExternalAuth.NovellActiveDirectory.LdapUsername")]
+        [NopResourceDisplayName("Plugins.ExternalAuth.NovellActiveDirectory.LdapUsername")]
         public string AdUserName { get; set; }
 
     }

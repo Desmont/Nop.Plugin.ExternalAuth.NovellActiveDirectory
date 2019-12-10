@@ -20,13 +20,9 @@ namespace Nop.Plugin.ExternalAuth.NovellActiveDirectory.Components
 		}
 
 		public IViewComponentResult Invoke()
-		{
-			bool flag = false;
-			if (_novellActiveDirectoryExternalAuthSettings.UseInstantLogin && !_workContext.CurrentCustomer.IsRegistered(true) && !this.HttpContext.Session.Get<bool>("NovellLogout"))
-			{
-				flag = true;
-			}
-			return this.View<bool>("~/Plugins/ExternalAuth.NovellActiveDirectory/Views/WidgetPublicInfo.cshtml", flag);
-		}
-	}
+        {
+            bool flag = _novellActiveDirectoryExternalAuthSettings.UseInstantLogin && !_workContext.CurrentCustomer.IsRegistered() && !HttpContext.Session.Get<bool>("NovellLogout");
+            return View("~/Plugins/ExternalAuth.NovellActiveDirectory/Views/WidgetPublicInfo.cshtml", flag);
+        }
+    }
 }

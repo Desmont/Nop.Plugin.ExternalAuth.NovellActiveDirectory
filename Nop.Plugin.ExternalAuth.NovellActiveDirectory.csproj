@@ -10,11 +10,7 @@
     <AssemblyName>Nop.Plugin.ExternalAuth.NovellActiveDirectory</AssemblyName>
     <RootNamespace>Nop.Plugin.ExternalAuth.NovellActiveDirectory</RootNamespace>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
-    <OutputPath>..\..\Presentation\Nop.Web\Plugins\ExternalAuth.NovellActiveDirectory</OutputPath>
-    <OutDir>$(OutputPath)</OutDir>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+  <PropertyGroup>
     <OutputPath>..\..\Presentation\Nop.Web\Plugins\ExternalAuth.NovellActiveDirectory</OutputPath>
     <OutDir>$(OutputPath)</OutDir>
   </PropertyGroup>
@@ -28,6 +24,7 @@
     <None Remove="Views\PublicInfo.cshtml" />
     <None Remove="Views\WidgetPublicInfo.cshtml" />
     <None Remove="Views\_ViewImports.cshtml" />
+    <None Remove="ViewModels\**" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="Views\Configure.cshtml">
@@ -54,30 +51,16 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="ViewModels\" />
+    <ProjectReference Include="..\..\Presentation\Nop.Web.Framework\Nop.Web.Framework.csproj" />
+    <ProjectReference Include="..\..\Presentation\Nop.Web\Nop.Web.csproj" />
+    <PackageReference Include="Novell.Directory.Ldap.NETStandard" Version="3.0.0-beta6" />
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Autofac" Version="4.9.1" />
-    <PackageReference Include="FluentValidation" Version="8.0.0" />
-    <PackageReference Include="Microsoft.AspNetCore.Authentication" Version="2.2.0" />
-    <PackageReference Include="Microsoft.AspNetCore.Identity" Version="2.2.0" />
-    <PackageReference Include="Microsoft.AspNetCore.Mvc.Core" Version="2.2.5" />
-    <PackageReference Include="Microsoft.AspNetCore.Mvc.ViewFeatures" Version="2.2.0" />
-    <PackageReference Include="Microsoft.Extensions.Identity.Stores" Version="2.2.0" />
-    <PackageReference Include="Novell.Directory.Ldap.NETStandard" Version="3.0.0-beta4" />
+    <Compile Remove="ViewModels\**" />
   </ItemGroup>
 
   <ItemGroup>
-    <Reference Include="Nop.Core">
-      <HintPath>NopDlls\Nop.Core.dll</HintPath>
-    </Reference>
-    <Reference Include="Nop.Services">
-      <HintPath>NopDlls\Nop.Services.dll</HintPath>
-    </Reference>
-    <Reference Include="Nop.Web.Framework">
-      <HintPath>NopDlls\Nop.Web.Framework.dll</HintPath>
-    </Reference>
+    <EmbeddedResource Remove="ViewModels\**" />
   </ItemGroup>
-
 </Project>

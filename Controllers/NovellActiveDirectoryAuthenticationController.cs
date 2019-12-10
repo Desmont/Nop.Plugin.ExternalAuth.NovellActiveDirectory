@@ -33,19 +33,9 @@ namespace Nop.Plugin.ExternalAuth.NovellActiveDirectory.Controllers
 
 		private readonly ISettingService _settingService;
 
-		private readonly ICustomerService _customerService;
+        private readonly IWorkContext _workContext;
 
-		private readonly IAuthenticationService _authenticationService;
-
-		private readonly IShoppingCartService _shoppingCartService;
-
-		private readonly IWorkContext _workContext;
-
-		private readonly IEventPublisher _eventPublisher;
-
-		private readonly ICustomerActivityService _customerActivityService;
-
-		private readonly IStaticCacheManager _cacheManager;
+        private readonly ICustomerActivityService _customerActivityService;
 
         private readonly INotificationService _notificationService;
 
@@ -64,13 +54,8 @@ namespace Nop.Plugin.ExternalAuth.NovellActiveDirectory.Controllers
 			_localizationService = localizationService;
 			_permissionService = permissionService;
 			_settingService = settingService;
-			_customerService = customerService;
-			_authenticationService = authenticationService;
-			_shoppingCartService = shoppingCartService;
-			_workContext = workContext;
-			_eventPublisher = eventPublisher;
-			_customerActivityService = customerActivityService;
-			_cacheManager = cacheManager;
+            _workContext = workContext;
+            _customerActivityService = customerActivityService;
             _notificationService = notificationService;
             _ldapService = ldapService;
             _storeService = storeService;
@@ -84,7 +69,7 @@ namespace Nop.Plugin.ExternalAuth.NovellActiveDirectory.Controllers
 		{
 			if (!_permissionService.Authorize(StandardPermissionProvider.ManageExternalAuthenticationMethods))
 			{
-				return this.AccessDeniedView();
+				return AccessDeniedView();
 			}
             int activeStoreScopeConfiguration = _storeContext.ActiveStoreScopeConfiguration;
             var novellActiveDirectorySettings = _settingService.LoadSetting<NovellActiveDirectoryExternalAuthSettings>(activeStoreScopeConfiguration);
@@ -103,7 +88,7 @@ namespace Nop.Plugin.ExternalAuth.NovellActiveDirectory.Controllers
                 UseSSL = novellActiveDirectorySettings.UseSSL,
             };
         
-            return this.View("~/Plugins/ExternalAuth.NovellActiveDirectory/Views/Configure.cshtml", (object)configurationNovellModel);
+            return View("~/Plugins/ExternalAuth.NovellActiveDirectory/Views/Configure.cshtml", (object)configurationNovellModel);
 		}
 
 		[HttpPost]
@@ -114,9 +99,9 @@ namespace Nop.Plugin.ExternalAuth.NovellActiveDirectory.Controllers
 		{
 			if (!_permissionService.Authorize(StandardPermissionProvider.ManageExternalAuthenticationMethods))
 			{
-				return this.AccessDeniedView();
+				return AccessDeniedView();
 			}
-			if (!this.ModelState.IsValid)
+			if (!ModelState.IsValid)
 			{
 				return Configure();
 			}
@@ -132,11 +117,11 @@ namespace Nop.Plugin.ExternalAuth.NovellActiveDirectory.Controllers
             _novellActiveDirectoryExternalAuthSettings.DomainDistinguishedName = novellModel.DomainDistinguishedName;
             _novellActiveDirectoryExternalAuthSettings.LdapServerPort = novellModel.LdapServerPort;
             _novellActiveDirectoryExternalAuthSettings.UseSSL = novellModel.UseSSL;
-            int num = (this._storeService.GetAllStores(true).Count > 1) ? activeStoreScopeConfiguration : 0;
-            _settingService.SaveSetting<NovellActiveDirectoryExternalAuthSettings>(_novellActiveDirectoryExternalAuthSettings, num);
+            int num = (_storeService.GetAllStores(true).Count > 1) ? activeStoreScopeConfiguration : 0;
+            _settingService.SaveSetting(_novellActiveDirectoryExternalAuthSettings, num);
             _settingService.ClearCache();
             //_cacheManager.Clear();
-            this._customerActivityService.InsertActivity("EditNovellActiveDirectoryExternalAuthSettings", "Edit Novell Active Directory External Auth Settings", null);
+            _customerActivityService.InsertActivity("EditNovellActiveDirectoryExternalAuthSettings", "Edit Novell Active Directory External Auth Settings", null);
             _notificationService.SuccessNotification(_localizationService.GetResource("Admin.Plugins.Saved"));
 
 			return Configure();
@@ -144,59 +129,49 @@ namespace Nop.Plugin.ExternalAuth.NovellActiveDirectory.Controllers
 
         public IActionResult SignIn(SignInViewModel model, string returnUrl)
         {
-     
-           // bool flag = !this._externalAuthenticationService.ExternalAuthenticationMethodIsAvailable("ExternalAuth.NovellActiveDirectory");
-            var flag = _authenticationPluginManager
-                .IsPluginActive("ExternalAuth.NovellActiveDirectory", _workContext.CurrentCustomer, _storeContext.CurrentStore.Id);
-
-            if (!flag)
-            {
+            if (!_authenticationPluginManager
+                .IsPluginActive("ExternalAuth.NovellActiveDirectory", _workContext.CurrentCustomer, _storeContext.CurrentStore.Id))
                 throw new NopException("Novell Active Directory authentication module cannot be loaded");
-            }
-            bool flag2 = string.IsNullOrEmpty(this._novellActiveDirectoryExternalAuthSettings.LdapPath);
-            if (flag2)
-            {
+
+            if (string.IsNullOrEmpty(_novellActiveDirectoryExternalAuthSettings.LdapPath))
                 throw new NopException("Novell Active Directory authentication module not configured");
-            }
-            IActionResult result2;
+
+            IActionResult result;
             if (string.IsNullOrEmpty(model.AdUserName))
             {
-                ExternalAuthorizerHelper.AddErrorsToDisplay(this._localizationService.GetResource("Plugins.ExternalAuth.NovellActiveDirectory.WindowsUserNotAvailable"));
-                result2 = new RedirectToActionResult("Login", "Customer", (!string.IsNullOrEmpty(returnUrl)) ? new
+                ExternalAuthorizerHelper.AddErrorsToDisplay(_localizationService.GetResource("Plugins.ExternalAuth.NovellActiveDirectory.WindowsUserNotAvailable"));
+                result = new RedirectToActionResult("Login", "Customer", (!string.IsNullOrEmpty(returnUrl)) ? new
                 {
                     ReturnUrl = returnUrl
                 } : null);
             }
             else
             {
-                string email = string.Empty;
-                LdapUser ldapUser = null;
+                LdapUser ldapUser;
                 try
                 {
-                    ldapUser = this._ldapService.GetUserByUserName(model.AdUserName);
+                    ldapUser = _ldapService.GetUserByUserName(model.AdUserName);
                     if (null==ldapUser)
                     {
-                        ExternalAuthorizerHelper.AddErrorsToDisplay(this._localizationService.GetResource("Plugins.ExternalAuth.NovellActiveDirectory.UserNotFound"));
+                        ExternalAuthorizerHelper.AddErrorsToDisplay(_localizationService.GetResource("Plugins.ExternalAuth.NovellActiveDirectory.UserNotFound"));
                         return new RedirectToActionResult("Login", "Customer", (!string.IsNullOrEmpty(returnUrl)) ? new
                         {
                             ReturnUrl = returnUrl
                         } : null);
-
                     }
-                    
                 }
                 catch (Exception e)
                 {
-                    ExternalAuthorizerHelper.AddErrorsToDisplay(this._localizationService.GetResource("Plugins.ExternalAuth.NovellActiveDirectory.LdapError : "+e));
+                    ExternalAuthorizerHelper.AddErrorsToDisplay(_localizationService.GetResource("Plugins.ExternalAuth.NovellActiveDirectory.LdapError : "+e));
                     return new RedirectToActionResult("Login", "Customer", (!string.IsNullOrEmpty(returnUrl)) ? new
                     {
                         ReturnUrl = returnUrl
                     } : null);
                 }
-          
+
                 try
                 {
-                    bool flag6 = this._ldapService.Authenticate(ldapUser.DistinguishedName, model.AdPassword);
+                    bool flag6 = _ldapService.Authenticate(ldapUser.DistinguishedName, model.AdPassword);
                     if (flag6)
                     {
                         ExternalAuthenticationParameters authenticationParameters = new ExternalAuthenticationParameters
@@ -207,12 +182,12 @@ namespace Nop.Plugin.ExternalAuth.NovellActiveDirectory.Controllers
                             ExternalIdentifier = ldapUser.Email,
                             ExternalDisplayIdentifier = ldapUser.Email
                         };
-                        return this._externalAuthenticationService.Authenticate(authenticationParameters, returnUrl);
+                        return _externalAuthenticationService.Authenticate(authenticationParameters, returnUrl);
                     }
                 }
                 catch (Exception e)
                 {
-                    ExternalAuthorizerHelper.AddErrorsToDisplay(this._localizationService.GetResource("Plugins.ExternalAuth.NovellActiveDirectory.LdapError : "+"auth " + e));
+                    ExternalAuthorizerHelper.AddErrorsToDisplay(_localizationService.GetResource("Plugins.ExternalAuth.NovellActiveDirectory.LdapError : "+"auth " + e));
                     return new RedirectToActionResult("Login", "Customer", (!string.IsNullOrEmpty(returnUrl)) ? new
                     {
                         ReturnUrl = returnUrl
@@ -220,14 +195,11 @@ namespace Nop.Plugin.ExternalAuth.NovellActiveDirectory.Controllers
                 }
             }
 
-           
-            ExternalAuthorizerHelper.AddErrorsToDisplay(this._localizationService.GetResource("Plugins.ExternalAuth.NovellActiveDirectory.LdapError"));
-            result2 = new RedirectToActionResult("Login", "Customer", (!string.IsNullOrEmpty(returnUrl)) ? new
-            {
-                ReturnUrl = returnUrl
-            } : null);
-            return result2;
+            ExternalAuthorizerHelper.AddErrorsToDisplay(
+                _localizationService.GetResource("Plugins.ExternalAuth.NovellActiveDirectory.LdapError"));
+            result = new RedirectToActionResult("Login", "Customer",
+                (!string.IsNullOrEmpty(returnUrl)) ? new {ReturnUrl = returnUrl} : null);
+            return result;
         }
- 
 	}
 }

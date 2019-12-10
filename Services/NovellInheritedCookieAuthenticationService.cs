@@ -3,7 +3,6 @@ using Nop.Core.Domain.Customers;
 using Nop.Core.Http.Extensions;
 using Nop.Services.Authentication;
 using Nop.Services.Customers;
-using SessionExtensions = Nop.Core.Http.Extensions.SessionExtensions;
 
 namespace Nop.Plugin.ExternalAuth.NovellActiveDirectory.Services
 {
@@ -20,7 +19,7 @@ namespace Nop.Plugin.ExternalAuth.NovellActiveDirectory.Services
 		public override void SignOut()
 		{
 			base.SignOut();
-			_httpContextAccessor.HttpContext.Session.Set<bool>("NovellLogout", true);
+			_httpContextAccessor.HttpContext.Session.Set("NovellLogout", true);
 		}
 	}
 }

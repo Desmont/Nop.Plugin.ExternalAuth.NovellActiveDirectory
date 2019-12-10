@@ -8,7 +8,6 @@ namespace Nop.Plugin.ExternalAuth.NovellActiveDirectory.Infrastructure
 	{
 		public void Configure(AuthenticationBuilder builder)
 		{
-           
 
         }
 	}

@@ -24,54 +24,53 @@ namespace Nop.Plugin.ExternalAuth.NovellActiveDirectory.Services
 
         public LdapService(NovellActiveDirectoryExternalAuthSettings ldapSettings)
         {
-            this._ldapSettings = ldapSettings;
+            _ldapSettings = ldapSettings;
         }
 
         private ILdapConnection GetConnection()
         {
 
-            var ldapConnection = new LdapConnection() { SecureSocketLayer = this._ldapSettings.UseSSL };
+            var ldapConnection = new LdapConnection() { SecureSocketLayer = _ldapSettings.UseSSL };
 
-            //Connect function will create a socket connection to the server - Port 389 for insecure and 3269 (adata) for secure    
-            ldapConnection.Connect(this._ldapSettings.LdapPath,Convert.ToInt32(this._ldapSettings.LdapServerPort));
-            //Bind function with null user dn and password value will perform anonymous bind to LDAP server 
-            ldapConnection.Bind(this._ldapSettings.LdapUsername, this._ldapSettings.LdapPassword);
-         
+            //Connect function will create a socket connection to the server - Port 389 for insecure and 3269 (adata) for secure
+            ldapConnection.Connect(_ldapSettings.LdapPath,Convert.ToInt32(_ldapSettings.LdapServerPort));
+            //Bind function with null user dn and password value will perform anonymous bind to LDAP server
+            ldapConnection.Bind(_ldapSettings.LdapUsername, _ldapSettings.LdapPassword);
+
             return ldapConnection;
         }
 
-        public ICollection<Models.LdapEntry> GetGroups(string groupName, bool getChildGroups = false)
+        public ICollection<LdapEntry> GetGroups(string groupName, bool getChildGroups = false)
         {
-            var groups = new Collection<Models.LdapEntry>();
+            var groups = new Collection<LdapEntry>();
 
             var filter = $"(&(objectClass=group)(cn={groupName}))";
 
-            using (var ldapConnection = this.GetConnection())
+            using (var ldapConnection = GetConnection())
             {
                 var search = ldapConnection.Search(
-                    this._ldapSettings.SearchBase,
+                    _ldapSettings.SearchBase,
                     LdapConnection.ScopeSub,
                     filter,
-                    this._attributes,
+                    _attributes,
                     false,
                     null);
 
-                LdapMessage message;
                 foreach (var entry in search)
                 {
-                    groups.Add(this.CreateEntryFromAttributes(entry.Dn, entry.GetAttributeSet()));
+                    groups.Add(CreateEntryFromAttributes(entry.Dn, entry.GetAttributeSet()));
 
                     if (!getChildGroups)
                     {
                         continue;
                     }
 
-                    foreach (var child in this.GetChildren<Models.LdapEntry>(string.Empty, entry.Dn))
+                    foreach (var child in GetChildren<LdapEntry>(string.Empty, entry.Dn))
                     {
                         groups.Add(child);
                     }
                 }
-              
+
             }
 
             return groups;
@@ -79,27 +78,27 @@ namespace Nop.Plugin.ExternalAuth.NovellActiveDirectory.Services
 
         public ICollection<LdapUser> GetAllUsers()
         {
-            return this.GetUsersInGroups(null);
+            return GetUsersInGroups(null);
         }
 
         public ICollection<LdapUser> GetUsersInGroup(string group)
         {
-            return this.GetUsersInGroups(this.GetGroups(group));
+            return GetUsersInGroups(GetGroups(group));
         }
 
-        public ICollection<LdapUser> GetUsersInGroups(ICollection<Models.LdapEntry> groups)
+        public ICollection<LdapUser> GetUsersInGroups(ICollection<LdapEntry> groups)
         {
             var users = new Collection<LdapUser>();
 
             if (groups == null || !groups.Any())
             {
-                users.AddRange(this.GetChildren<LdapUser>(this._ldapSettings.SearchBase));
+                users.AddRange(GetChildren<LdapUser>(_ldapSettings.SearchBase));
             }
             else
             {
                 foreach (var group in groups)
                 {
-                    users.AddRange(this.GetChildren<LdapUser>(this._ldapSettings.SearchBase, @group.DistinguishedName));
+                    users.AddRange(GetChildren<LdapUser>(_ldapSettings.SearchBase, @group.DistinguishedName));
                 }
             }
 
@@ -112,22 +111,21 @@ namespace Nop.Plugin.ExternalAuth.NovellActiveDirectory.Services
 
             var filter = $"(&(objectClass=user)(mail={emailAddress}))";
 
-            using (var ldapConnection = this.GetConnection())
+            using (var ldapConnection = GetConnection())
             {
                 var search = ldapConnection.Search(
-                    this._ldapSettings.SearchBase,
+                    _ldapSettings.SearchBase,
                     LdapConnection.ScopeSub,
                     filter,
-                    this._attributes,
+                    _attributes,
                     false, null);
 
-                LdapMessage message;
                 foreach (var entry in search)
                 {
-                    users.Add(this.CreateUserFromAttributes(this._ldapSettings.SearchBase,
+                    users.Add(CreateUserFromAttributes(_ldapSettings.SearchBase,
                         entry.GetAttributeSet()));
                 }
-               
+
             }
 
             return users;
@@ -137,26 +135,24 @@ namespace Nop.Plugin.ExternalAuth.NovellActiveDirectory.Services
         {
             LdapUser user = null;
 
-           var filter = $"(&(objectClass=user)(name={userName}))";
-            using (var ldapConnection = this.GetConnection())
+            var filter = $"(&(objectClass=user)(objectClass=person)(sAMAccountName={userName}))";
+            using (var ldapConnection = GetConnection())
             {
                 var search = ldapConnection.Search(
-                    this._ldapSettings.SearchBase,
+                    _ldapSettings.SearchBase,
                     LdapConnection.ScopeSub,
                     filter,
-                    this._attributes,
+                    _attributes,
                     false,
-                    null);
+                    new LdapSearchConstraints { ReferralFollowing = false});
 
-                LdapMessage message;
                 if (search.HasMore())
                 {
                     foreach (var entry in search)
                     {
-                        user = this.CreateUserFromAttributes(this._ldapSettings.SearchBase, entry.GetAttributeSet());
+                        user = CreateUserFromAttributes(_ldapSettings.SearchBase, entry.GetAttributeSet());
                     }
                 }
-               
             }
 
             return user;
@@ -164,22 +160,22 @@ namespace Nop.Plugin.ExternalAuth.NovellActiveDirectory.Services
 
         public LdapUser GetAdministrator()
         {
-            var name = this._ldapSettings.LdapUsername.Substring(
-                this._ldapSettings.LdapUsername.IndexOf("\\", StringComparison.Ordinal) != -1
-                    ? this._ldapSettings.LdapUsername.IndexOf("\\", StringComparison.Ordinal) + 1
+            var name = _ldapSettings.LdapUsername.Substring(
+                _ldapSettings.LdapUsername.IndexOf("\\", StringComparison.Ordinal) != -1
+                    ? _ldapSettings.LdapUsername.IndexOf("\\", StringComparison.Ordinal) + 1
                     : 0);
 
-            return this.GetUserByUserName(name);
+            return GetUserByUserName(name);
         }
 
         public void AddUser(LdapUser user, string password)
         {
-            var dn = $"CN={user.FirstName} {user.LastName},{this._ldapSettings.ContainerName}";
+            var dn = $"CN={user.FirstName} {user.LastName},{_ldapSettings.ContainerName}";
 
             var attributeSet = new LdapAttributeSet
             {
                 new LdapAttribute("instanceType", "4"),
-                new LdapAttribute("objectCategory", $"CN=Person,CN=Schema,CN=Configuration,{this._ldapSettings.DomainDistinguishedName}"),
+                new LdapAttribute("objectCategory", $"CN=Person,CN=Schema,CN=Configuration,{_ldapSettings.DomainDistinguishedName}"),
                 new LdapAttribute("objectClass", new[] {"top", "person", "organizationalPerson", "user"}),
                 new LdapAttribute("name", user.UserName),
                 new LdapAttribute("cn", $"{user.FirstName} {user.LastName}"),
@@ -229,10 +225,10 @@ namespace Nop.Plugin.ExternalAuth.NovellActiveDirectory.Services
             {
                 attributeSet.Add(new LdapAttribute("c", user.Address.CountryCode));
             }
-            
+
             var newEntry = new Novell.Directory.Ldap.LdapEntry(dn, attributeSet);
 
-            using (var ldapConnection = this.GetConnection())
+            using (var ldapConnection = GetConnection())
             {
                 ldapConnection.Add(newEntry);
             }
@@ -240,7 +236,7 @@ namespace Nop.Plugin.ExternalAuth.NovellActiveDirectory.Services
 
         public void DeleteUser(string distinguishedName)
         {
-            using (var ldapConnection = this.GetConnection())
+            using (var ldapConnection = GetConnection())
             {
                 ldapConnection.Delete(distinguishedName);
             }
@@ -249,9 +245,9 @@ namespace Nop.Plugin.ExternalAuth.NovellActiveDirectory.Services
 
         public bool Authenticate(string distinguishedName, string password)
         {
-            using (var ldapConnection = new LdapConnection() { SecureSocketLayer = true })
+            using (var ldapConnection = new LdapConnection { SecureSocketLayer = _ldapSettings.UseSSL })
             {
-                ldapConnection.Connect(this._ldapSettings.LdapPath,Convert.ToInt32(this._ldapSettings.LdapServerPort));
+                ldapConnection.Connect(_ldapSettings.LdapPath,Convert.ToInt32(_ldapSettings.LdapServerPort));
 
                 try
                 {
@@ -274,12 +270,12 @@ namespace Nop.Plugin.ExternalAuth.NovellActiveDirectory.Services
             var objectCategory = "*";
             var objectClass = "*";
 
-            if (typeof(T) == typeof(Models.LdapEntry))
+            if (typeof(T) == typeof(LdapEntry))
             {
                 objectClass = "group";
                 objectCategory = "group";
 
-                entries = this.GetChildren(this._ldapSettings.SearchBase, groupDistinguishedName, objectCategory, objectClass)
+                entries = GetChildren(_ldapSettings.SearchBase, groupDistinguishedName, objectCategory, objectClass)
                     .Cast<T>().ToCollection();
 
             }
@@ -289,7 +285,7 @@ namespace Nop.Plugin.ExternalAuth.NovellActiveDirectory.Services
                 objectCategory = "person";
                 objectClass = "user";
 
-                entries = this.GetChildren(this._ldapSettings.SearchBase, null, objectCategory, objectClass).Cast<T>()
+                entries = GetChildren(_ldapSettings.SearchBase, null, objectCategory, objectClass).Cast<T>()
                     .ToCollection();
 
             }
@@ -306,17 +302,16 @@ namespace Nop.Plugin.ExternalAuth.NovellActiveDirectory.Services
                 ? $"(&(objectCategory={objectCategory})(objectClass={objectClass}))"
                 : $"(&(objectCategory={objectCategory})(objectClass={objectClass})(memberOf={groupDistinguishedName}))";
 
-            using (var ldapConnection = this.GetConnection())
+            using (var ldapConnection = GetConnection())
             {
                 var search = ldapConnection.Search(
                     searchBase,
                     LdapConnection.ScopeSub,
                     filter,
-                    this._attributes,
+                    _attributes,
                     false,
                     null);
 
-                LdapMessage message;
                 if (search.HasMore())
                 {
                     foreach (var entry in search)
@@ -324,9 +319,9 @@ namespace Nop.Plugin.ExternalAuth.NovellActiveDirectory.Services
 
                         if (objectClass == "group")
                         {
-                            allChildren.Add(this.CreateEntryFromAttributes(entry.Dn, entry.GetAttributeSet()));
+                            allChildren.Add(CreateEntryFromAttributes(entry.Dn, entry.GetAttributeSet()));
 
-                            foreach (var child in this.GetChildren(string.Empty, entry.Dn, objectCategory, objectClass))
+                            foreach (var child in GetChildren(string.Empty, entry.Dn, objectCategory, objectClass))
                             {
                                 allChildren.Add(child);
                             }
@@ -334,11 +329,10 @@ namespace Nop.Plugin.ExternalAuth.NovellActiveDirectory.Services
 
                         if (objectClass == "user")
                         {
-                            allChildren.Add(this.CreateUserFromAttributes(entry.Dn, entry.GetAttributeSet()));
+                            allChildren.Add(CreateUserFromAttributes(entry.Dn, entry.GetAttributeSet()));
                         }
                     }
                 }
-            
             }
 
             return allChildren;
@@ -348,38 +342,43 @@ namespace Nop.Plugin.ExternalAuth.NovellActiveDirectory.Services
         {
             var ldapUser = new LdapUser
             {
-                ObjectSid = attributeSet.GetAttribute("objectSid")?.StringValue,
-                ObjectGuid = attributeSet.GetAttribute("objectGUID")?.StringValue,
-                ObjectCategory = attributeSet.GetAttribute("objectCategory")?.StringValue,
-                ObjectClass = attributeSet.GetAttribute("objectClass")?.StringValue,
-                IsDomainAdmin = attributeSet.GetAttribute("memberOf") != null && attributeSet.GetAttribute("memberOf").StringValueArray.Contains("CN=Domain Admins," + this._ldapSettings.SearchBase),
-                MemberOf = attributeSet.GetAttribute("memberOf")?.StringValueArray,
-                CommonName = attributeSet.GetAttribute("cn")?.StringValue,
-                UserName = attributeSet.GetAttribute("name")?.StringValue,
-                SamAccountName = attributeSet.GetAttribute("sAMAccountName")?.StringValue,
-                UserPrincipalName = attributeSet.GetAttribute("userPrincipalName")?.StringValue,
-                Name = attributeSet.GetAttribute("name")?.StringValue,
-                DistinguishedName = attributeSet.GetAttribute("distinguishedName")?.StringValue ?? distinguishedName,
-                DisplayName = attributeSet.GetAttribute("displayName")?.StringValue,
-                FirstName = attributeSet.GetAttribute("givenName")?.StringValue,
-                LastName = attributeSet.GetAttribute("sn")?.StringValue,
-                Description = attributeSet.GetAttribute("description")?.StringValue,
-                Phone = attributeSet.GetAttribute("telephoneNumber")?.StringValue,
-                EmailAddress = attributeSet.GetAttribute("mail")?.StringValue,
+                ObjectSid = GetValue(attributeSet, "objectSid")?.StringValue,
+                ObjectGuid = GetValue(attributeSet, "objectGUID")?.StringValue,
+                ObjectCategory = GetValue(attributeSet, "objectCategory")?.StringValue,
+                ObjectClass = GetValue(attributeSet, "objectClass")?.StringValue,
+                MemberOf = GetValue(attributeSet, "memberOf")?.StringValueArray,
+                CommonName = GetValue(attributeSet, "cn")?.StringValue,
+                UserName = GetValue(attributeSet, "name")?.StringValue,
+                SamAccountName = GetValue(attributeSet, "sAMAccountName")?.StringValue,
+                UserPrincipalName = GetValue(attributeSet, "userPrincipalName")?.StringValue,
+                Name = GetValue(attributeSet, "name")?.StringValue,
+                DistinguishedName = GetValue(attributeSet, "distinguishedName")?.StringValue ?? distinguishedName,
+                DisplayName = GetValue(attributeSet, "displayName")?.StringValue,
+                FirstName = GetValue(attributeSet, "givenName")?.StringValue,
+                LastName = GetValue(attributeSet, "sn")?.StringValue,
+                Description = GetValue(attributeSet, "description")?.StringValue,
+                Phone = GetValue(attributeSet, "telephoneNumber")?.StringValue,
+                EmailAddress = GetValue(attributeSet, "mail")?.StringValue,
                 Address = new LdapAddress
                 {
-                    Street = attributeSet.GetAttribute("streetAddress")?.StringValue,
-                    City = attributeSet.GetAttribute("l")?.StringValue,
-                    PostalCode = attributeSet.GetAttribute("postalCode")?.StringValue,
-                    StateName = attributeSet.GetAttribute("st")?.StringValue,
-                    CountryName = attributeSet.GetAttribute("co")?.StringValue,
-                    CountryCode = attributeSet.GetAttribute("c")?.StringValue
+                    Street = GetValue(attributeSet, "streetAddress")?.StringValue,
+                    City = GetValue(attributeSet, "l")?.StringValue,
+                    PostalCode = GetValue(attributeSet, "postalCode")?.StringValue,
+                    StateName = GetValue(attributeSet, "st")?.StringValue,
+                    CountryName = GetValue(attributeSet, "co")?.StringValue,
+                    CountryCode = GetValue(attributeSet, "c")?.StringValue
                 },
-                PasswordExpiredDate = GetPasswordExpiredDate(attributeSet.GetAttribute("msDS-UserPasswordExpiryTimeComputed")?.StringValue),
-                SamAccountType = int.Parse(attributeSet.GetAttribute("sAMAccountType")?.StringValue ?? "0")
+                PasswordExpiredDate = GetPasswordExpiredDate(GetValue(attributeSet, "msDS-UserPasswordExpiryTimeComputed")?.StringValue),
+                SamAccountType = int.Parse(GetValue(attributeSet, "sAMAccountType")?.StringValue ?? "0")
             };
-          
+
             return ldapUser;
+        }
+
+        private static TV GetValue<TK, TV>(IDictionary<TK, TV> dict, TK key, TV defaultValue = default(TV))
+        {
+            TV value;
+            return dict.TryGetValue(key, out value) ? value : defaultValue;
         }
 
         private DateTime GetPasswordExpiredDate(string stringValue)
@@ -389,28 +388,28 @@ namespace Nop.Plugin.ExternalAuth.NovellActiveDirectory.Services
                 return DateTime.FromFileTime(tickValue);
             }
             return new DateTime();
-            
+
         }
 
-        private Models.LdapEntry CreateEntryFromAttributes(string distinguishedName, LdapAttributeSet attributeSet)
+        private LdapEntry CreateEntryFromAttributes(string distinguishedName, LdapAttributeSet attributeSet)
         {
-            return new Models.LdapEntry
+            return new LdapEntry
             {
-                ObjectSid = attributeSet.GetAttribute("objectSid")?.StringValue,
-                ObjectGuid = attributeSet.GetAttribute("objectGUID")?.StringValue,
-                ObjectCategory = attributeSet.GetAttribute("objectCategory")?.StringValue,
-                ObjectClass = attributeSet.GetAttribute("objectClass")?.StringValue,
-                CommonName = attributeSet.GetAttribute("cn")?.StringValue,
-                Name = attributeSet.GetAttribute("name")?.StringValue,
-                DistinguishedName = attributeSet.GetAttribute("distinguishedName")?.StringValue ?? distinguishedName,
-                SamAccountName = attributeSet.GetAttribute("sAMAccountName")?.StringValue,
-                SamAccountType = int.Parse(attributeSet.GetAttribute("sAMAccountType")?.StringValue ?? "0"),
+                ObjectSid = GetValue(attributeSet, "objectSid")?.StringValue,
+                ObjectGuid = GetValue(attributeSet, "objectGUID")?.StringValue,
+                ObjectCategory = GetValue(attributeSet, "objectCategory")?.StringValue,
+                ObjectClass = GetValue(attributeSet, "objectClass")?.StringValue,
+                CommonName = GetValue(attributeSet, "cn")?.StringValue,
+                Name = GetValue(attributeSet, "name")?.StringValue,
+                DistinguishedName = GetValue(attributeSet, "distinguishedName")?.StringValue ?? distinguishedName,
+                SamAccountName = GetValue(attributeSet, "sAMAccountName")?.StringValue,
+                SamAccountType = int.Parse(GetValue(attributeSet, "sAMAccountType")?.StringValue ?? "0"),
             };
         }
 
         private SecurityIdentifier GetDomainSid()
         {
-            var administratorAcount = new NTAccount(this._ldapSettings.Domain, "administrator");
+            var administratorAcount = new NTAccount(_ldapSettings.Domain, "administrator");
             var administratorSId = (SecurityIdentifier)administratorAcount.Translate(typeof(SecurityIdentifier));
             return administratorSId.AccountDomainSid;
         }
